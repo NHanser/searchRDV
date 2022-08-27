@@ -29,7 +29,7 @@ from utils.vmd_logger import (
 )
 from utils.vmd_utils import fix_scrap_urls, get_last_scans, get_start_date, q_iter, EOQ, DummyQueue, BulkQueue
 from .doctolib.doctolib import center_iterator as doctolib_center_iterator
-from .doctolib.doctolib import fetch_slots as doctolib_fetch_slots
+from .doctolib_radio.doctolib import fetch_slots as doctolib_fetch_slots
 from .keldoc.keldoc import fetch_slots as keldoc_fetch_slots
 from .keldoc.keldoc import center_iterator as keldoc_center_iterator
 from .maiia.maiia import center_iterator as maiia_center_iterator
@@ -62,14 +62,23 @@ def scrape_debug(urls):  # pragma: no cover
     for rdv_site_web in urls:
         rdv_site_web = fix_scrap_urls(rdv_site_web)
         logger.info("scraping URL %s", rdv_site_web)
-        try:
-            result = fetch_centre_slots(rdv_site_web, start_date)
-        except Exception:
-            logger.exception(f"erreur lors du traitement")
+        with Manager() as manager:
+            creneau_q = BulkQueue(manager.Queue(maxsize=100))
+            center_info = CenterInfo.from_dict({"nom": "Croix du Sud", "departement": "Haute-Garonne", "url": rdv_site_web})
+            try:
+                result = fetch_centre_slots(
+                    rdv_site_web=rdv_site_web, 
+                    start_date=start_date, 
+                    creneau_q=creneau_q, 
+                    center_info=center_info,
+                    center_platform="doctolib")
+            except Exception:
+                logger.exception(f"erreur lors du traitement")
         logger.info(f'{result.platform!s:16} {result.next_availability or ""!s:32}')
         if result.request.appointment_count:
             logger.debug(f"appointments: {result.request.appointment_count}")
         log_requests(result.request)
+        return result
 
 
 def scrape(platforms=None):  # pragma: no cover
@@ -231,6 +240,7 @@ def get_default_fetch_map():
             "scraper_ptr": valwin_fetch_slots,
         },
     }
+    
 
 
 def get_center_platform(center_url: str, center_platform: str = None, fetch_map: dict = None):
