@@ -19,7 +19,7 @@ def send_mail(
     # Try to log in to server and send email
     try:
         server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-        server.set_debuglevel(1)
+        server.set_debuglevel(3)
         server.connect(smtp_server)
         server.ehlo()
         server.login(sender_email, password)  # On s'authentifie
@@ -49,7 +49,7 @@ def main():  # pragma: no cover
     parser.add_argument("--url-file", type=argparse.FileType("r"), help="scrape urls listed in file (one per line)")
     # email config
     parser.add_argument("-S", "--smtp_server", help='SMTP server', type=str)
-    parser.add_argument("-P", "--port", help='port', type=str)
+    parser.add_argument("-P", "--port", help='port', type=int)
     parser.add_argument("-s", "--sender_email", help='sender email', type=str)
     parser.add_argument("-w", "--password", help='password', type=str)
     parser.add_argument("-R", "--receiver_email", help='receiver email', type=str)
@@ -63,7 +63,13 @@ def main():  # pragma: no cover
             next_date = result.next_availability
             url = result.request.url
             consult_type = result.request.vaccine_type[0]
-            send_mail(next_date, url, consult_type)
+            send_mail(next_date, url, consult_type, 
+            smtp_server=args.smtp_server,
+            smtp_port=args.port,
+            sender_email=args.sender_email,
+            password=args.password,
+            receiver_email=args.receiver_email
+            )
 
         return
     platforms = []
